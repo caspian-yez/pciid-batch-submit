@@ -4,17 +4,18 @@ import requests
 import bs4
 import json
 
-submit_data = [
-    # {"id": "a323", "name": "300/C240 Series Chipset Family SMBus"},
-]
+submit_data = {
+    # "a323": "300/C240 Series Chipset Family SMBus",
+}
 
 
 def html_parse(str_html: str):
     soup = bs4.BeautifulSoup(str_html, "html.parser")
-
+    text = ""
     name = soup.find("div", class_="name")
-    text = name.get_text().split(":")[1].strip().replace("\r", "").replace("\n", "")
-    print(text)
+    if name is not None:
+        text = name.get_text().split(":")[1].strip().replace("\r", "").replace("\n", "")
+        print(text)
     return text
 
 
@@ -72,21 +73,21 @@ def main():
     http_session = requests.sessions.session()
     cookie = get_cookie()
 
-    for item in submit_data:
-        print("----------------------Processing: {}".format(json.dumps(item, indent=4)))
-        pciid_url = "https://{}/read/PC/8086/{}".format(domain, item["id"])
+    for key in submit_data.keys():
+        print("----------------------Processing: {}: {}".format(key, submit_data[key]))
+        pciid_url = "https://{}/read/PC/8086/{}".format(domain, key)
         response = http_request(
             http_session, req_method="GET", req_url=pciid_url, req_cookie=cookie
         )
         if response.ok:
             # id exists
             name = html_parse(response.text)
-            if item["name"] == name:
+            if submit_data[key] == name:
                 continue
             else:
                 # text=&name=&note=&subscribe=subscribe&submit=Submit
                 update_url = "https://{}/read/PC/8086/{}?action=newhistory".format(
-                    domain, item["id"]
+                    domain, key
                 )
                 http_request(
                     http_session,
@@ -94,7 +95,7 @@ def main():
                     req_url=update_url,
                     req_data={
                         "text": "",
-                        "name": item["name"],
+                        "name": submit_data[key],
                         "note": "",
                         "subscribe": "subscribe",
                         "submit": "Submit",
@@ -110,8 +111,8 @@ def main():
                 req_method="POST",
                 req_url=new_url,
                 req_data={
-                    "id": item["id"].lower(),
-                    "name": item["name"],
+                    "id": key.lower(),
+                    "name": submit_data[key],
                     "note": "",
                     "discussion": "",
                     "subscribe": "subscribe",
